@@ -2,154 +2,138 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Metal Team Runner</title>
+    <title>Metal Team City</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: 'Arial', sans-serif; touch-action: none; }
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; background: #222; }
         #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; text-align: center; }
-        .char-selection { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px; padding: 10px; }
-        .char-card { border: 2px solid #444; padding: 8px; text-align: center; border-radius: 12px; background: #111; transition: 0.2s; }
-        .char-card img { width: 45px; height: 45px; object-fit: contain; display: block; margin: 0 auto 5px; }
-        .char-card.selected { border-color: #0f0; background: #1a331a; transform: scale(1.05); }
-        button { padding: 15px 50px; background: #0f0; border: none; font-weight: bold; border-radius: 30px; font-size: 22px; color: black; box-shadow: 0 4px #080; cursor: pointer; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; pointer-events: none; z-index: 5; text-shadow: 2px 2px #000; }
+        .char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px; }
+        .card { border: 2px solid #444; padding: 10px; border-radius: 12px; background: #111; width: 85px; }
+        .card.selected { border-color: #0f0; background: #1a331a; }
+        .card img { width: 60px; height: 60px; object-fit: contain; }
+        button { padding: 18px 50px; background: #0f0; border: none; font-weight: bold; border-radius: 30px; font-size: 22px; color: black; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; z-index: 5; pointer-events: none; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="ui">
-        SCORE: <span id="score">0</span><br>
-        BEST: <span id="highscore">0</span><br>
-        COINS: <span id="coins">0</span>
-    </div>
+    <div id="ui">SCORE: <span id="score">0</span><br>BEST: <span id="best">0</span></div>
     
     <div id="menu">
-        <h1 style="color:#0f0; margin-bottom:5px;">METAL TEAM CITY</h1>
-        <p style="margin-top:0;">Select Your Runner:</p>
-        <div class="char-selection" id="charGrid">
-            <div class="char-card selected" id="card-james" onclick="selectChar('james')"><img src="https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_160308164.jpg">James</div>
-            <div class="char-card" id="card-key" onclick="selectChar('key')"><img src="https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_160833062.jpg">Key</div>
-            <div class="char-card" id="card-lock" onclick="selectChar('lock')"><img src="https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_160442954.jpg">Lock</div>
-            <div class="char-card" id="card-chain1" onclick="selectChar('chain1')"><img src="https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_161727910.jpg">Goldy</div>
-            <div class="char-card" id="card-chain2" onclick="selectChar('chain2')"><img src="https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_161132436.jpg">Bee</div>
+        <h1 style="color:#0f0">METAL TEAM CITY</h1>
+        <div class="char-grid">
+            <div class="card selected" id="c-james" onclick="sel('james')"><img src="Polish_20251230_160308164.jpg"><br>James</div>
+            <div class="card" id="c-key" onclick="sel('key')"><img src="Polish_20251230_160833062.jpg"><br>Key</div>
+            <div class="card" id="c-lock" onclick="sel('lock')"><img src="Polish_20251230_160442954.jpg"><br>Lock</div>
+            <div class="card" id="c-g" onclick="sel('chain1')"><img src="Polish_20251230_161727910.jpg"><br>Goldy</div>
+            <div class="card" id="c-b" onclick="sel('chain2')"><img src="Polish_20251230_161132436.jpg"><br>Bee</div>
         </div>
-        <button onclick="startGame()">START RUNNING</button>
+        <button onclick="go()">START RUNNING</button>
     </div>
 
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="c"></canvas>
 
 <script>
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playNote(freq, dur, type) {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(); osc.stop(audioCtx.currentTime + dur);
-}
-
-const imagesData = {
-    james: "https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_160308164.jpg",
-    key: "https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_160833062.jpg",
-    lock: "https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_160442954.jpg",
-    chain1: "https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_161727910.jpg",
-    chain2: "https://raw.githubusercontent.com/thecastastics-cmd/my-watch-game/main/Polish_20251230_161132436.jpg"
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const imgs = {
+    james: "Polish_20251230_160308164.jpg",
+    key: "Polish_20251230_160833062.jpg",
+    lock: "Polish_20251230_160442954.jpg",
+    chain1: "Polish_20251230_161727910.jpg",
+    chain2: "Polish_20251230_161132436.jpg"
 };
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-
 const sprites = {};
-Object.keys(imagesData).forEach(k => { sprites[k] = new Image(); sprites[k].src = imagesData[k]; });
-
-let gameActive = false; let score = 0; let coins = 0; let lane = 1; let speed = 7;
-let obstacles = []; let goldCoins = []; let buildings = [];
-let selectedChar = 'james'; let animTimer = 0;
-let highscore = localStorage.getItem('metalTeamHighscore') || 0;
-document.getElementById('highscore').innerText = highscore;
-
-function selectChar(n) {
-    selectedChar = n;
-    document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById('card-' + n).classList.add('selected');
-    playNote(440, 0.1);
-}
-
-function startGame() {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    document.getElementById('menu').style.display = 'none';
-    gameActive = true; score = 0; speed = 7; obstacles = []; goldCoins = []; buildings = [];
-    spawn(); draw();
-}
-
-window.addEventListener('touchstart', (e) => {
-    if (!gameActive) return;
-    const touchX = e.touches[0].clientX;
-    if (touchX < canvas.width / 2 && lane > 0) { lane--; playNote(300, 0.1); }
-    else if (touchX > canvas.width / 2 && lane < 2) { lane++; playNote(300, 0.1); }
+Object.keys(imgs).forEach(k => {
+    sprites[k] = new Image();
+    sprites[k].src = imgs[k];
 });
 
+let active = false; let score = 0; let lane = 1; let speed = 6;
+let obs = []; let selected = 'james'; let timer = 0;
+let high = localStorage.getItem('metalHigh') || 0;
+document.getElementById('best').innerText = high;
+
+function sel(n) {
+    selected = n;
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+    const idMap = {james:'c-james', key:'c-key', lock:'c-lock', chain1:'c-g', chain2:'c-b'};
+    document.getElementById(idMap[n]).classList.add('selected');
+}
+
+function go() {
+    document.getElementById('menu').style.display = 'none';
+    active = true;
+    obs = [];
+    score = 0;
+    speed = 6;
+    spawn();
+    loop();
+}
+
 function spawn() {
-    if(!gameActive) return;
-    const l = Math.floor(Math.random() * 3);
-    if(Math.random() > 0.5) obstacles.push({ x: l * (canvas.width/3) + 20, y: -150, w: (canvas.width/3) - 40, h: 120 });
-    else goldCoins.push({ x: l * (canvas.width/3) + (canvas.width/6), y: -50 });
-    
-    if(Math.random() > 0.7) buildings.push({ x: (Math.random() > 0.5 ? -100 : canvas.width - 50), y: -300, w: 150, h: 400 });
-    
-    setTimeout(spawn, Math.max(300, 900 - (speed * 15)));
+    if(!active) return;
+    obs.push({x: Math.floor(Math.random() * 3), y: -150});
+    setTimeout(spawn, Math.max(400, 1000 - (speed * 10)));
 }
 
-function update() {
-    score++; speed += 0.002; animTimer += 0.15;
-    obstacles.forEach((o, i) => {
-        o.y += speed;
-        if (o.y > canvas.height) obstacles.splice(i, 1);
-        if (canvas.height-160 < o.y + o.h && canvas.height-100 > o.y && lane === Math.floor(o.x/(canvas.width/3))) {
-            playNote(100, 0.5, 'sawtooth'); gameActive = false;
-            if (Math.floor(score/10) > highscore) localStorage.setItem('metalTeamHighscore', Math.floor(score/10));
-            alert("CRASH! Score: " + Math.floor(score/10)); location.reload();
-        }
-    });
-    goldCoins.forEach((c, i) => {
-        c.y += speed;
-        if (Math.hypot((lane * (canvas.width/3) + (canvas.width/6)) - c.x, (canvas.height-130) - c.y) < 50) {
-            goldCoins.splice(i, 1); coins++; playNote(880, 0.1); document.getElementById('coins').innerText = coins;
-        }
-    });
-    buildings.forEach((b, i) => { b.y += speed * 0.5; if(b.y > canvas.height) buildings.splice(i, 1); });
-}
+window.addEventListener('touchstart', e => {
+    if(!active) return;
+    const touchX = e.touches[0].clientX;
+    if(touchX < window.innerWidth / 2) { if(lane > 0) lane--; }
+    else { if(lane < 2) lane++; }
+});
 
-function draw() {
-    ctx.fillStyle = "#111"; ctx.fillRect(0,0,canvas.width, canvas.height);
+function loop() {
+    if(!active) return;
+    ctx.fillStyle = '#222'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // Draw Buildings
-    ctx.fillStyle = "#222";
-    buildings.forEach(b => { ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeStyle="#333"; ctx.strokeRect(b.x, b.y, b.w, b.h); });
+    // Lanes
+    ctx.strokeStyle = '#444'; ctx.lineWidth = 2;
+    for(let i=1; i<3; i++) {
+        ctx.beginPath(); ctx.moveTo(i*(canvas.width/3), 0); ctx.lineTo(i*(canvas.width/3), canvas.height); ctx.stroke();
+    }
 
-    // Tracks
-    ctx.strokeStyle = "#444"; ctx.lineWidth = 4;
-    for(let i=1; i<3; i++) { ctx.beginPath(); ctx.moveTo(i*(canvas.width/3), 0); ctx.lineTo(i*(canvas.width/3), canvas.height); ctx.stroke(); }
+    timer += 0.15; score++; speed += 0.002;
     
-    // Player
-    const bob = Math.sin(animTimer) * 8; const charImg = sprites[selectedChar];
+    // Character Animation
+    const char = sprites[selected];
+    const px = lane * (canvas.width/3) + (canvas.width/6);
+    const py = canvas.height - 150 + Math.sin(timer) * 8;
+    
     ctx.save();
-    ctx.translate(lane * (canvas.width/3) + (canvas.width/6), canvas.height - 140 + bob);
-    ctx.rotate(Math.sin(animTimer * 0.8) * 0.08);
-    if (charImg.complete) ctx.drawImage(charImg, -45, -45, 90, 90);
+    ctx.translate(px, py);
+    ctx.rotate(Math.sin(timer * 0.8) * 0.08);
+    if(char.complete && char.naturalWidth !== 0) {
+        ctx.drawImage(char, -45, -45, 90, 90);
+    } else {
+        // Fallback if image still loading
+        ctx.fillStyle = '#0f0'; ctx.beginPath(); ctx.arc(0,0,30,0,7); ctx.fill();
+    }
     ctx.restore();
 
     // Obstacles
-    ctx.fillStyle = "#555"; obstacles.forEach(o => { ctx.fillRect(o.x, o.y, o.w, o.h); ctx.fillStyle="yellow"; ctx.fillRect(o.x+10, o.y+10, 15, 10); ctx.fillStyle="#555"; });
+    obs.forEach((o, i) => {
+        o.y += speed;
+        ctx.fillStyle = '#666'; 
+        ctx.fillRect(o.x*(canvas.width/3)+20, o.y, (canvas.width/3)-40, 120);
+        
+        if(o.y > canvas.height) obs.splice(i, 1);
+        
+        // Collision Detection
+        if(o.y > canvas.height-200 && o.y < canvas.height-80 && o.x === lane) {
+            active = false;
+            const final = Math.floor(score/10);
+            if(final > high) localStorage.setItem('metalHigh', final);
+            alert("CRASH! Score: " + final);
+            location.reload();
+        }
+    });
 
-    // Coins
-    ctx.fillStyle = "gold"; goldCoins.forEach(c => { ctx.beginPath(); ctx.arc(c.x, c.y, 15, 0, Math.PI*2); ctx.fill(); });
-
-    if(gameActive) { update(); document.getElementById('score').innerText = Math.floor(score/10); requestAnimationFrame(draw); }
+    document.getElementById('score').innerText = Math.floor(score/10);
+    requestAnimationFrame(loop);
 }
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 </script>
 </body>
-    </html>
+</html>
