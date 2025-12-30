@@ -5,42 +5,54 @@
     <title>Metal Team City</title>
     <style>
         body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; touch-action: none; }
-        canvas { display: block; width: 100vw; height: 100vh; background: #222; }
+        canvas { display: block; width: 100vw; height: 100vh; background: #1a1a1a; }
         #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; text-align: center; }
-        .char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px; }
-        .card { border: 2px solid #444; padding: 10px; border-radius: 12px; background: #111; width: 85px; }
-        .card.selected { border-color: #0f0; background: #1a331a; }
-        .card img { width: 60px; height: 60px; object-fit: contain; }
-        button { padding: 18px 50px; background: #0f0; border: none; font-weight: bold; border-radius: 30px; font-size: 22px; color: black; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; z-index: 5; pointer-events: none; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px; }
+        .card { border: 2px solid #444; padding: 5px; border-radius: 10px; background: #222; width: 85px; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .card.selected { border-color: #0f0; background: #040; }
+        /* This fix ensures images show up in the menu */
+        .card img { width: 50px; height: 50px; object-fit: contain; display: block; margin-bottom: 5px; background: #333; }
+        button { padding: 15px 45px; background: #0f0; border: none; font-weight: bold; border-radius: 30px; font-size: 22px; color: black; box-shadow: 0 4px #080; }
+        #ui { position: absolute; top: 10px; left: 10px; color: #0f0; font-family: monospace; z-index: 5; pointer-events: none; font-size: 16px; }
     </style>
 </head>
 <body>
-    <div id="ui">SCORE: <span id="score">0</span><br>BEST: <span id="best">0</span></div>
+    <div id="ui">SCORE: <span id="s">0</span> | BEST: <span id="b">0</span><br>COINS: <span id="c_count">0</span></div>
     
     <div id="menu">
-        <h1 style="color:#0f0">METAL TEAM CITY</h1>
-        <div class="char-grid">
-            <div class="card selected" id="c-james" onclick="sel('james')"><img src="Polish_20251230_160308164.jpg"><br>James</div>
-            <div class="card" id="c-key" onclick="sel('key')"><img src="Polish_20251230_160833062.jpg"><br>Key</div>
-            <div class="card" id="c-lock" onclick="sel('lock')"><img src="Polish_20251230_160442954.jpg"><br>Lock</div>
-            <div class="card" id="c-g" onclick="sel('chain1')"><img src="Polish_20251230_161727910.jpg"><br>Goldy</div>
-            <div class="card" id="c-b" onclick="sel('chain2')"><img src="Polish_20251230_161132436.jpg"><br>Bee</div>
+        <h1 style="color:#0f0; margin-bottom: 10px;">METAL TEAM</h1>
+        <div class="grid">
+            <div class="card selected" id="c-james" onclick="sel('james')">
+                <img src="./Polish_20251230_160308164.jpg" onerror="this.src='https://via.placeholder.com/50?text=J'">James
+            </div>
+            <div class="card" id="c-key" onclick="sel('key')">
+                <img src="./Polish_20251230_160833062.jpg" onerror="this.src='https://via.placeholder.com/50?text=K'">Key
+            </div>
+            <div class="card" id="c-lock" onclick="sel('lock')">
+                <img src="./Polish_20251230_160442954.jpg" onerror="this.src='https://via.placeholder.com/50?text=L'">Lock
+            </div>
+            <div class="card" id="c-g" onclick="sel('chain1')">
+                <img src="./Polish_20251230_161727910.jpg" onerror="this.src='https://via.placeholder.com/50?text=G'">Goldy
+            </div>
+            <div class="card" id="c-b" onclick="sel('chain2')">
+                <img src="./Polish_20251230_161132436.jpg" onerror="this.src='https://via.placeholder.com/50?text=B'">Bee
+            </div>
         </div>
-        <button onclick="go()">START RUNNING</button>
+        <button onclick="go()">START GAME</button>
     </div>
 
-    <canvas id="c"></canvas>
+    <canvas id="game"></canvas>
 
 <script>
-const canvas = document.getElementById('c');
+const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+// Added ./ to the start to tell the browser "look in this folder"
 const imgs = {
-    james: "Polish_20251230_160308164.jpg",
-    key: "Polish_20251230_160833062.jpg",
-    lock: "Polish_20251230_160442954.jpg",
-    chain1: "Polish_20251230_161727910.jpg",
-    chain2: "Polish_20251230_161132436.jpg"
+    james: "./Polish_20251230_160308164.jpg",
+    key: "./Polish_20251230_160833062.jpg",
+    lock: "./Polish_20251230_160442954.jpg",
+    chain1: "./Polish_20251230_161727910.jpg",
+    chain2: "./Polish_20251230_161132436.jpg"
 };
 
 const sprites = {};
@@ -49,88 +61,98 @@ Object.keys(imgs).forEach(k => {
     sprites[k].src = imgs[k];
 });
 
-let active = false; let score = 0; let lane = 1; let speed = 6;
-let obs = []; let selected = 'james'; let timer = 0;
-let high = localStorage.getItem('metalHigh') || 0;
-document.getElementById('best').innerText = high;
+let active = false; let score = 0; let coins = 0; let lane = 1; let speed = 6;
+let obs = []; let c_list = []; let selected = 'james'; let timer = 0;
+let high = localStorage.getItem('metal_best') || 0;
+document.getElementById('b').innerText = high;
 
 function sel(n) {
     selected = n;
     document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
-    const idMap = {james:'c-james', key:'c-key', lock:'c-lock', chain1:'c-g', chain2:'c-b'};
-    document.getElementById(idMap[n]).classList.add('selected');
+    const ids = {james:'c-james', key:'c-key', lock:'c-lock', chain1:'c-g', chain2:'c-b'};
+    document.getElementById(ids[n]).classList.add('selected');
 }
 
-function go() {
-    document.getElementById('menu').style.display = 'none';
-    active = true;
-    obs = [];
+function go() { 
+    document.getElementById('menu').style.display='none'; 
+    active=true; 
     score = 0;
-    speed = 6;
-    spawn();
-    loop();
+    obs = [];
+    c_list = [];
+    spawn(); 
+    loop(); 
 }
 
 function spawn() {
     if(!active) return;
-    obs.push({x: Math.floor(Math.random() * 3), y: -150});
-    setTimeout(spawn, Math.max(400, 1000 - (speed * 10)));
+    const l = Math.floor(Math.random()*3);
+    if(Math.random() > 0.4) obs.push({x: l, y: -150});
+    else c_list.push({x: l, y: -50});
+    setTimeout(spawn, Math.max(300, 1000 - (speed * 10)));
 }
 
 window.addEventListener('touchstart', e => {
     if(!active) return;
-    const touchX = e.touches[0].clientX;
-    if(touchX < window.innerWidth / 2) { if(lane > 0) lane--; }
+    if(e.touches[0].clientX < window.innerWidth/2) { if(lane > 0) lane--; }
     else { if(lane < 2) lane++; }
 });
 
 function loop() {
     if(!active) return;
-    ctx.fillStyle = '#222'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#111'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // Lanes
-    ctx.strokeStyle = '#444'; ctx.lineWidth = 2;
-    for(let i=1; i<3; i++) {
-        ctx.beginPath(); ctx.moveTo(i*(canvas.width/3), 0); ctx.lineTo(i*(canvas.width/3), canvas.height); ctx.stroke();
+    // Road lines
+    ctx.strokeStyle='#333';
+    for(let i=1;i<3;i++) {
+        ctx.beginPath(); ctx.moveTo(i*(canvas.width/3),0); ctx.lineTo(i*(canvas.width/3),canvas.height); ctx.stroke();
     }
 
     timer += 0.15; score++; speed += 0.002;
-    
-    // Character Animation
-    const char = sprites[selected];
     const px = lane * (canvas.width/3) + (canvas.width/6);
-    const py = canvas.height - 150 + Math.sin(timer) * 8;
-    
-    ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(Math.sin(timer * 0.8) * 0.08);
-    if(char.complete && char.naturalWidth !== 0) {
-        ctx.drawImage(char, -45, -45, 90, 90);
-    } else {
-        // Fallback if image still loading
-        ctx.fillStyle = '#0f0'; ctx.beginPath(); ctx.arc(0,0,30,0,7); ctx.fill();
-    }
-    ctx.restore();
+    const py = canvas.height - 150 + Math.sin(timer)*8;
 
     // Obstacles
     obs.forEach((o, i) => {
         o.y += speed;
-        ctx.fillStyle = '#666'; 
-        ctx.fillRect(o.x*(canvas.width/3)+20, o.y, (canvas.width/3)-40, 120);
-        
-        if(o.y > canvas.height) obs.splice(i, 1);
-        
-        // Collision Detection
-        if(o.y > canvas.height-200 && o.y < canvas.height-80 && o.x === lane) {
-            active = false;
-            const final = Math.floor(score/10);
-            if(final > high) localStorage.setItem('metalHigh', final);
-            alert("CRASH! Score: " + final);
+        ctx.fillStyle = '#555'; ctx.fillRect(o.x*(canvas.width/3)+20, o.y, (canvas.width/3)-40, 100);
+        if(o.y > canvas.height) obs.splice(i,1);
+        if(o.y > canvas.height-180 && o.y < canvas.height-80 && o.x === lane) {
+            active = false; 
+            if(Math.floor(score/10) > high) localStorage.setItem('metal_best', Math.floor(score/10));
+            alert("Crash! Score: " + Math.floor(score/10));
             location.reload();
         }
     });
 
-    document.getElementById('score').innerText = Math.floor(score/10);
+    // Coins
+    c_list.forEach((c, i) => {
+        c.y += speed;
+        ctx.fillStyle = 'gold'; ctx.beginPath(); ctx.arc(c.x*(canvas.width/3)+(canvas.width/6), c.y, 15, 0, 7); ctx.fill();
+        if(c.y > canvas.height-180 && c.y < canvas.height-80 && Math.abs(c.x - lane) < 0.2) {
+            c_list.splice(i,1); coins++; document.getElementById('c_count').innerText = coins;
+        }
+    });
+
+    // Player Drawing Logic
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(Math.sin(timer*0.8)*0.08);
+    
+    const currentSprite = sprites[selected];
+    if(currentSprite.complete && currentSprite.naturalWidth !== 0) {
+        ctx.drawImage(currentSprite, -45, -45, 90, 90);
+    } else {
+        // This is the green circle you are seeing - it means the image is failing to load
+        ctx.fillStyle='#0f0';
+        ctx.beginPath();
+        ctx.arc(0, 0, 40, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle='black';
+        ctx.fillText("LOADING", -25, 5);
+    }
+    ctx.restore();
+
+    document.getElementById('s').innerText = Math.floor(score/10);
     requestAnimationFrame(loop);
 }
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
