@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Watch Runner Mobile</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; font-family: sans-serif; touch-action: none; }
+        canvas { display: block; width: 100vw; height: 100vh; background: #333; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; pointer-events: none; }
+        #shop { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); color: white; padding: 20px; border: 3px solid #0f0; display: none; text-align: center; width: 80%; }
+        button { padding: 15px; background: #0f0; border: none; font-weight: bold; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="ui">Score: <span id="score">0</span> | Coins: <span id="coins">0</span></div>
+    <div id="shop">
+        <h2>NEW CHARACTER!</h2>
+        <p>Unlocked: <b>Blue Car</b></p>
+        <button onclick="closeShop()">PLAY AGAIN</button>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const coinsEl = document.getElementById('coins');
+const shopEl = document.getElementById('shop');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0; let coins = 0; let lane = 1; let gameActive = true; let speed = 7;
+let obstacles = []; let goldCoins = [];
+const laneWidth = canvas.width / 3;
+
+const player = { x: laneWidth * 1.5, y: canvas.height - 120, size: 50, color: "#0f0" };
+
+// TOUCH CONTROLS FOR PHONE
+window.addEventListener('touchstart', (e) => {
+    const touchX = e.touches[0].clientX;
+    if (touchX < canvas.width / 2 && lane > 0) lane--;
+    else if (touchX > canvas.width / 2 && lane < 2) lane++;
+});
+
+function spawn() {
+    if(!gameActive) return;
+    const l = Math.floor(Math.random() * 3);
+    if(Math.random() > 0.5) obstacles.push({ x: l * laneWidth + 10, y: -100, w: laneWidth - 20, h: 100 });
+    else goldCoins.push({ x: l * laneWidth + laneWidth/2, y: -50 });
+    setTimeout(spawn, 700);
+}
+
+function update() {
+    if (!gameActive) return;
+    score++;
+    scoreEl.innerText = Math.floor(score/10);
+    speed += 0.002;
+
+    const targetX = lane * laneWidth + laneWidth/2;
+    player.x += (targetX - player.x) * 0.2;
+
+    obstacles.forEach((obs, i) => {
+        obs.y += speed;
+        if (obs.y > canvas.height) obstacles.splice(i, 1);
+        if (player.y < obs.y + obs.h && player.y + 50 > obs.y && Math.abs(player.x - (obs.x + obs.w/2)) < obs.w/2) {
+            gameActive = false; alert("CRASHED!"); location.reload();
+        }
+    });
+
+    goldCoins.forEach((c, i) => {
+        c.y += speed;
+        if (Math.hypot(player.x - c.x, player.y - c.y) < 40) {
+            goldCoins.splice(i, 1); coins++; coinsEl.innerText = coins;
+            if(coins === 5) { gameActive = false; shopEl.style.display = "block"; }
+        }
+    });
+}
+
+function draw() {
+    ctx.fillStyle = "#333"; ctx.fillRect(0,0,canvas.width, canvas.height);
+    ctx.strokeStyle = "#555";
+    for(let i=1; i<3; i++) { ctx.beginPath(); ctx.moveTo(i*laneWidth,0); ctx.lineTo(i*laneWidth,canvas.height); ctx.stroke(); }
+    
+    // Draw Watch
+    ctx.fillStyle = "black"; ctx.fillRect(player.x - 25, player.y - 25, 50, 50);
+    ctx.fillStyle = player.color; ctx.fillRect(player.x - 15, player.y - 15, 30, 30);
+
+    ctx.fillStyle = "grey"; obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+    ctx.fillStyle = "gold"; goldCoins.forEach(c => { ctx.beginPath(); ctx.arc(c.x, c.y, 15, 0, Math.PI*2); ctx.fill(); });
+
+    if(gameActive) { update(); requestAnimationFrame(draw); }
+}
+
+function closeShop() { shopEl.style.display = "none"; gameActive = true; player.color = "#00f"; obstacles = []; goldCoins = []; draw(); spawn(); }
+
+spawn();
+draw();
+</script>
+</body>
+</html>
